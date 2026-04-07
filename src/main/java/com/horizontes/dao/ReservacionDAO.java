@@ -6,6 +6,7 @@ import com.horizontes.models.Reservacion;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ReservacionDAO {
 
@@ -186,4 +187,148 @@ public class ReservacionDAO {
         r.setEstado(rs.getString("estado"));
         return r;
     }
+    // Reporte de ganancias en un intervalo
+public Map<String, Object> getReporteGanancias(String fechaInicio, String fechaFin) throws SQLException {
+    String sql = "SELECT " +
+                 "COALESCE(SUM(p.precio_venta - (SELECT COALESCE(SUM(sp.costo),0) FROM servicio_paquete sp WHERE sp.paquete_id = p.id)), 0) AS ganancias_brutas, " +
+                 "COALESCE((SELECT SUM(c.monto_reembolso) FROM cancelacion c " +
+                 "JOIN reservacion r2 ON c.reservacion_id = r2.id " +
+                 "WHERE (? IS NULL OR c.fecha_cancelacion >= ?) " +
+                 "AND (? IS NULL OR c.fecha_cancelacion <= ?)), 0) AS total_reembolsos " +
+                 "FROM reservacion r " +
+                 "JOIN paquete p ON r.paquete_id = p.id " +
+                 "WHERE r.estado IN ('CONFIRMADA','COMPLETADA') " +
+                 "AND (? IS NULL OR r.fecha_creacion >= ?) " +
+                 "AND (? IS NULL OR r.fecha_creacion <= ?)";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fechaInicio); ps.setString(2, fechaInicio);
+        ps.setString(3, fechaFin);   ps.setString(4, fechaFin);
+        ps.setString(5, fechaInicio); ps.setString(6, fechaInicio);
+        ps.setString(7, fechaFin);   ps.setString(8, fechaFin);
+        ResultSet rs = ps.executeQuery();
+        Map<String, Object> resultado = new java.util.HashMap<>();
+        if (rs.next()) {
+            double gananciasBrutas = rs.getDouble("ganancias_brutas");
+            double totalReembolsos = rs.getDouble("total_reembolsos");
+            resultado.put("gananciasBrutas", gananciasBrutas);
+            resultado.put("totalReembolsos", totalReembolsos);
+            resultado.put("gananciaNeta", gananciasBrutas - totalReembolsos);
+        }
+        return resultado;
+    }
+}
+
+// Agente con más ventas
+public Map<String, Object> getAgentesMasVentas(String fechaInicio, String fechaFin) throws SQLException {
+    String sql = "SELECT u.nombre, COUNT(r.id) AS total_reservaciones, " +
+                 "SUM(r.costo_total) AS monto_total " +
+                 "FROM reservacion r " +
+                 "JOIN usuario u ON r.agente_id = u.id " +
+                 "WHERE r.estado IN ('CONFIRMADA','COMPLETADA') " +
+                 "AND (? IS NULL OR r.fecha_creacion >= ?) " +
+                 "AND (? IS NULL OR r.fecha_creacion <= ?) " +
+                 "GROUP BY u.id, u.nombre " +
+                 "ORDER BY total_reservaciones DESC";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fechaInicio); ps.setString(2, fechaInicio);
+        ps.setString(3, fechaFin);   ps.setString(4, fechaFin);
+        ResultSet rs = ps.executeQuery();
+        java.util.List<Map<String, Object>> lista = new java.util.ArrayList<>();
+        while (rs.next()) {
+            Map<String, Object> fila = new java.util.HashMap<>();
+            fila.put("nombre", rs.getString("nombre"));
+            fila.put("totalReservaciones", rs.getInt("total_reservaciones"));
+            fila.put("montoTotal", rs.getDouble("monto_total"));
+            lista.add(fila);
+        }
+        Map<String, Object> resultado = new java.util.HashMap<>();
+        resultado.put("agentes", lista);
+        return resultado;
+    }
+}
+
+// Agente con más ganancias
+public Map<String, Object> getAgentesMasGanancias(String fechaInicio, String fechaFin) throws SQLException {
+    String sql = "SELECT u.nombre, " +
+                 "SUM(p.precio_venta - (SELECT COALESCE(SUM(sp.costo),0) FROM servicio_paquete sp WHERE sp.paquete_id = p.id)) AS ganancia_total " +
+                 "FROM reservacion r " +
+                 "JOIN usuario u ON r.agente_id = u.id " +
+                 "JOIN paquete p ON r.paquete_id = p.id " +
+                 "WHERE r.estado IN ('CONFIRMADA','COMPLETADA') " +
+                 "AND (? IS NULL OR r.fecha_creacion >= ?) " +
+                 "AND (? IS NULL OR r.fecha_creacion <= ?) " +
+                 "GROUP BY u.id, u.nombre " +
+                 "ORDER BY ganancia_total DESC";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fechaInicio); ps.setString(2, fechaInicio);
+        ps.setString(3, fechaFin);   ps.setString(4, fechaFin);
+        ResultSet rs = ps.executeQuery();
+        java.util.List<Map<String, Object>> lista = new java.util.ArrayList<>();
+        while (rs.next()) {
+            Map<String, Object> fila = new java.util.HashMap<>();
+            fila.put("nombre", rs.getString("nombre"));
+            fila.put("gananciaTotal", rs.getDouble("ganancia_total"));
+            lista.add(fila);
+        }
+        Map<String, Object> resultado = new java.util.HashMap<>();
+        resultado.put("agentes", lista);
+        return resultado;
+    }
+}
+
+// Paquete más y menos vendido
+public java.util.List<Map<String, Object>> getPaquetesPorVentas(String fechaInicio, String fechaFin) throws SQLException {
+    String sql = "SELECT p.nombre, COUNT(r.id) AS total_ventas, SUM(r.costo_total) AS monto_total " +
+                 "FROM reservacion r " +
+                 "JOIN paquete p ON r.paquete_id = p.id " +
+                 "WHERE r.estado IN ('CONFIRMADA','COMPLETADA') " +
+                 "AND (? IS NULL OR r.fecha_creacion >= ?) " +
+                 "AND (? IS NULL OR r.fecha_creacion <= ?) " +
+                 "GROUP BY p.id, p.nombre " +
+                 "ORDER BY total_ventas DESC";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fechaInicio); ps.setString(2, fechaInicio);
+        ps.setString(3, fechaFin);   ps.setString(4, fechaFin);
+        ResultSet rs = ps.executeQuery();
+        java.util.List<Map<String, Object>> lista = new java.util.ArrayList<>();
+        while (rs.next()) {
+            Map<String, Object> fila = new java.util.HashMap<>();
+            fila.put("nombre", rs.getString("nombre"));
+            fila.put("totalVentas", rs.getInt("total_ventas"));
+            fila.put("montoTotal", rs.getDouble("monto_total"));
+            lista.add(fila);
+        }
+        return lista;
+    }
+}
+
+// Ocupación por destino
+public java.util.List<Map<String, Object>> getOcupacionPorDestino(String fechaInicio, String fechaFin) throws SQLException {
+    String sql = "SELECT d.nombre AS destino, COUNT(r.id) AS total_reservaciones " +
+                 "FROM reservacion r " +
+                 "JOIN paquete p ON r.paquete_id = p.id " +
+                 "JOIN destino d ON p.destino_id = d.id " +
+                 "WHERE (? IS NULL OR r.fecha_creacion >= ?) " +
+                 "AND (? IS NULL OR r.fecha_creacion <= ?) " +
+                 "GROUP BY d.id, d.nombre " +
+                 "ORDER BY total_reservaciones DESC";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fechaInicio); ps.setString(2, fechaInicio);
+        ps.setString(3, fechaFin);   ps.setString(4, fechaFin);
+        ResultSet rs = ps.executeQuery();
+        java.util.List<Map<String, Object>> lista = new java.util.ArrayList<>();
+        while (rs.next()) {
+            Map<String, Object> fila = new java.util.HashMap<>();
+            fila.put("destino", rs.getString("destino"));
+            fila.put("totalReservaciones", rs.getInt("total_reservaciones"));
+            lista.add(fila);
+        }
+        return lista;
+    }
+}
 }

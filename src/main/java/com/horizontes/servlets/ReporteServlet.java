@@ -7,7 +7,8 @@ import com.horizontes.utils.PdfGenerator;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
 
 @WebServlet("/api/reportes/*")
 public class ReporteServlet extends HttpServlet {
@@ -23,6 +24,10 @@ public class ReporteServlet extends HttpServlet {
         String fechaFin = req.getParameter("fin");
         boolean exportarPdf = "true".equals(req.getParameter("pdf"));
 
+        // Convertir cadenas vacías a null para que el DAO traiga todos los registros
+        if (fechaInicio != null && fechaInicio.isEmpty()) fechaInicio = null;
+        if (fechaFin != null && fechaFin.isEmpty()) fechaFin = null;
+
         try {
             if (pathInfo == null) {
                 res.setStatus(400);
@@ -31,30 +36,59 @@ public class ReporteServlet extends HttpServlet {
             }
 
             switch (pathInfo) {
+
+                // Reporte de ventas
                 case "/ventas" -> {
                     var lista = reservacionDAO.listar();
                     if (exportarPdf) {
                         byte[] pdf = PdfGenerator.generarReporteVentas(lista);
-                        res.setContentType("application/pdf");
-                        res.setHeader("Content-Disposition", "attachment; filename=reporte_ventas.pdf");
-                        res.getOutputStream().write(pdf);
+                        enviarPdf(res, pdf, "reporte_ventas.pdf");
                     } else {
-                        res.setContentType("application/json");
-                        res.getWriter().print(gson.toJson(lista));
+                        enviarJson(res, lista);
                     }
                 }
+
+                // Reporte de cancelaciones
                 case "/cancelaciones" -> {
                     var lista = cancelacionDAO.listarPorIntervalo(fechaInicio, fechaFin);
                     if (exportarPdf) {
                         byte[] pdf = PdfGenerator.generarReporteCancelaciones(lista);
-                        res.setContentType("application/pdf");
-                        res.setHeader("Content-Disposition", "attachment; filename=reporte_cancelaciones.pdf");
-                        res.getOutputStream().write(pdf);
+                        enviarPdf(res, pdf, "reporte_cancelaciones.pdf");
                     } else {
-                        res.setContentType("application/json");
-                        res.getWriter().print(gson.toJson(lista));
+                        enviarJson(res, lista);
                     }
                 }
+
+                // Reporte de ganancias netas
+                case "/ganancias" -> {
+                    Map<String, Object> datos = reservacionDAO.getReporteGanancias(fechaInicio, fechaFin);
+                    enviarJson(res, datos);
+                }
+
+                // Agente con más ventas
+                case "/agente-ventas" -> {
+                    Map<String, Object> datos = reservacionDAO.getAgentesMasVentas(fechaInicio, fechaFin);
+                    enviarJson(res, datos);
+                }
+
+                // Agente con más ganancias
+                case "/agente-ganancias" -> {
+                    Map<String, Object> datos = reservacionDAO.getAgentesMasGanancias(fechaInicio, fechaFin);
+                    enviarJson(res, datos);
+                }
+
+                // Paquetes ordenados por ventas (más y menos vendido)
+                case "/paquetes-ventas" -> {
+                    List<Map<String, Object>> lista = reservacionDAO.getPaquetesPorVentas(fechaInicio, fechaFin);
+                    enviarJson(res, lista);
+                }
+
+                // Ocupación por destino
+                case "/ocupacion-destino" -> {
+                    List<Map<String, Object>> lista = reservacionDAO.getOcupacionPorDestino(fechaInicio, fechaFin);
+                    enviarJson(res, lista);
+                }
+
                 default -> {
                     res.setStatus(400);
                     res.getWriter().print("{\"error\":\"Tipo de reporte no reconocido\"}");
@@ -64,5 +98,19 @@ public class ReporteServlet extends HttpServlet {
             res.setStatus(500);
             res.getWriter().print("{\"error\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    // Envía la respuesta como JSON
+    private void enviarJson(HttpServletResponse res, Object datos) throws IOException {
+        res.setContentType("application/json");
+        res.setCharacterEncoding("UTF-8");
+        res.getWriter().print(gson.toJson(datos));
+    }
+
+    // Envía la respuesta como PDF descargable
+    private void enviarPdf(HttpServletResponse res, byte[] pdf, String nombreArchivo) throws IOException {
+        res.setContentType("application/pdf");
+        res.setHeader("Content-Disposition", "attachment; filename=" + nombreArchivo);
+        res.getOutputStream().write(pdf);
     }
 }

@@ -20,21 +20,36 @@ public class PagoServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        res.setContentType("application/json");
-        res.setCharacterEncoding("UTF-8");
-        PrintWriter out = res.getWriter();
-        try {
-            String reservacionParam = req.getParameter("reservacion");
-            if (reservacionParam != null) {
+        String comprobanteParam = req.getParameter("comprobante");
+        String reservacionParam = req.getParameter("reservacion");
+
+        if (comprobanteParam != null) {
+            try {
+                int reservacionId = Integer.parseInt(comprobanteParam);
+                Reservacion r = reservacionDAO.buscarPorId(reservacionId);
+                List<Pago> pagos = dao.listarPorReservacion(reservacionId);
+                byte[] pdf = com.horizontes.utils.PdfGenerator.generarComprobantePago(r, pagos);
+                res.setContentType("application/pdf");
+                res.setHeader("Content-Disposition", "attachment; filename=comprobante_" + r.getNumero() + ".pdf");
+                res.getOutputStream().write(pdf);
+            } catch (Exception e) {
+                res.setStatus(500);
+                res.getWriter().print("{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        } else if (reservacionParam != null) {
+            res.setContentType("application/json");
+            res.setCharacterEncoding("UTF-8");
+            PrintWriter out = res.getWriter();
+            try {
                 List<Pago> lista = dao.listarPorReservacion(Integer.parseInt(reservacionParam));
                 out.print(gson.toJson(lista));
-            } else {
-                res.setStatus(400);
-                out.print("{\"error\":\"Se requiere el parametro reservacion\"}");
+            } catch (Exception e) {
+                res.setStatus(500);
+                out.print("{\"error\":\"" + e.getMessage() + "\"}");
             }
-        } catch (Exception e) {
-            res.setStatus(500);
-            out.print("{\"error\":\"" + e.getMessage() + "\"}");
+        } else {
+            res.setStatus(400);
+            res.getWriter().print("{\"error\":\"Se requiere el parametro reservacion o comprobante\"}");
         }
     }
 
@@ -47,7 +62,6 @@ public class PagoServlet extends HttpServlet {
             Pago p = gson.fromJson(req.getReader(), Pago.class);
             boolean ok = dao.insertar(p);
             if (ok) {
-                // Verificar si la reservación quedó pagada completamente
                 Reservacion r = reservacionDAO.buscarPorId(p.getReservacionId());
                 double totalPagado = reservacionDAO.getTotalPagado(p.getReservacionId());
                 if (totalPagado >= r.getCostoTotal()) {
