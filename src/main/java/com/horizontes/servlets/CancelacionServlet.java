@@ -13,6 +13,11 @@ import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * Servlet que maneja las cancelaciones de reservaciones.
+ * Calcula automáticamente el reembolso según la política de la agencia.
+ * URL: /api/cancelaciones
+ */
 @WebServlet("/api/cancelaciones/*")
 public class CancelacionServlet extends HttpServlet {
 
@@ -20,6 +25,10 @@ public class CancelacionServlet extends HttpServlet {
     private final ReservacionDAO reservacionDAO = new ReservacionDAO();
     private final Gson gson = new Gson();
 
+    /**
+     * Procesa una cancelación de reservación.
+     * Verifica que la reservación pueda cancelarse y calcula el reembolso.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setContentType("application/json");
@@ -30,42 +39,44 @@ public class CancelacionServlet extends HttpServlet {
             Cancelacion datos = gson.fromJson(req.getReader(), Cancelacion.class);
             Reservacion r = reservacionDAO.buscarPorId(datos.getReservacionId());
 
+            // Verificamos que la reservación exista
             if (r == null) {
                 res.setStatus(404);
                 out.print("{\"error\":\"Reservacion no encontrada\"}");
                 return;
             }
 
-            // Validar estado
+            // Solo se pueden cancelar reservaciones PENDIENTES o CONFIRMADAS
             if (!r.getEstado().equals("PENDIENTE") && !r.getEstado().equals("CONFIRMADA")) {
                 res.setStatus(400);
                 out.print("{\"error\":\"Solo se pueden cancelar reservaciones PENDIENTES o CONFIRMADAS\"}");
                 return;
             }
 
-            // Validar días de anticipación
+            // Calculamos cuántos días faltan para el viaje
             LocalDate hoy = LocalDate.now();
             LocalDate fechaViaje = LocalDate.parse(r.getFechaViaje());
             long diasRestantes = ChronoUnit.DAYS.between(hoy, fechaViaje);
 
+            // No se permite cancelar con menos de 7 días de anticipación
             if (diasRestantes < 7) {
                 res.setStatus(400);
                 out.print("{\"error\":\"No se puede cancelar con menos de 7 dias de anticipacion\"}");
                 return;
             }
 
-            // Calcular reembolso
+            // Calculamos el monto a reembolsar según la política
             double totalPagado = reservacionDAO.getTotalPagado(r.getId());
             int[] resultado = ReembolsoCalculator.calcular(diasRestantes, totalPagado);
 
-            // Registrar cancelación
+            // Registramos la cancelación en la base de datos
             Cancelacion cancelacion = new Cancelacion();
             cancelacion.setReservacionId(r.getId());
             cancelacion.setMontoReembolso(resultado[0]);
             cancelacion.setPorcentajeReembolso(resultado[1]);
             dao.insertar(cancelacion);
 
-            // Actualizar estado de la reservación
+            // Actualizamos el estado de la reservación a CANCELADA
             reservacionDAO.actualizarEstado(r.getId(), "CANCELADA");
 
             out.print("{\"mensaje\":\"Reservacion cancelada\",\"reembolso\":" + resultado[0] +

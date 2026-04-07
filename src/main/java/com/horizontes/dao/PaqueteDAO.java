@@ -6,6 +6,12 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
+
+/**
+ * DAO de paquetes turísticos. Incluye consultas para listar paquetes,
+ * buscar por destino y calcular la ocupación actual de cada paquete.
+ */
 public class PaqueteDAO {
 
     public List<Paquete> listar() throws SQLException {

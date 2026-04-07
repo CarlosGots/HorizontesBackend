@@ -6,6 +6,12 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
+
+/**
+ * DAO de cancelaciones. Registra cancelaciones y permite consultarlas
+ * por intervalo de tiempo para los reportes financieros.
+ */
 public class CancelacionDAO {
 
     public boolean insertar(Cancelacion c) throws SQLException {

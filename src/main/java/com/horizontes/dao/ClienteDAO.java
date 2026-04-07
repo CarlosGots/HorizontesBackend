@@ -6,6 +6,11 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
+/**
+ * DAO de clientes. Permite buscar clientes por DPI para el proceso
+ * de registro de reservaciones.
+ */
 public class ClienteDAO {
 
     public List<Cliente> listar() throws SQLException {

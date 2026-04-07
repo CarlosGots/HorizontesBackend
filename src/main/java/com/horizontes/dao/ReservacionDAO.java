@@ -8,6 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * DAO de reservaciones. Maneja todas las operaciones de base de datos
+ * relacionadas con reservaciones, sus pasajeros y el cálculo de pagos.
+ */
 public class ReservacionDAO {
 
     public List<Reservacion> listar() throws SQLException {
