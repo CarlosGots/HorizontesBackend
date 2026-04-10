@@ -84,22 +84,22 @@ public class ReservacionServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPut(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        res.setContentType("application/json");
-        res.setCharacterEncoding("UTF-8");
-        PrintWriter out = res.getWriter();
-        try {
-            Reservacion r = gson.fromJson(req.getReader(), Reservacion.class);
-            boolean ok = dao.actualizarEstado(r.getId(), r.getEstado());
-            if (ok) {
-                out.print("{\"mensaje\":\"Estado actualizado correctamente\"}");
-            } else {
-                res.setStatus(500);
-                out.print("{\"error\":\"No se pudo actualizar el estado\"}");
-            }
-        } catch (Exception e) {
+protected void doPut(HttpServletRequest req, HttpServletResponse res) throws IOException {
+    res.setContentType("application/json");
+    res.setCharacterEncoding("UTF-8");
+    PrintWriter out = res.getWriter();
+    try {
+        Reservacion r = gson.fromJson(req.getReader(), Reservacion.class);
+        boolean ok = dao.actualizarEstado(r.getId(), r.getEstado());
+        if (ok) {
+            out.print("{\"mensaje\":\"Estado actualizado correctamente\"}");
+        } else {
             res.setStatus(500);
-            out.print("{\"error\":\"" + e.getMessage() + "\"}");
+            out.print("{\"error\":\"No se pudo actualizar el estado\"}");
         }
+    } catch (Exception e) {
+        res.setStatus(500);
+        out.print("{\"error\":\"" + e.getMessage() + "\"}");
     }
+}
 }
