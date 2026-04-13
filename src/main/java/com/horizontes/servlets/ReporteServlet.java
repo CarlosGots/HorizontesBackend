@@ -24,7 +24,7 @@ public class ReporteServlet extends HttpServlet {
         String fechaFin = req.getParameter("fin");
         boolean exportarPdf = "true".equals(req.getParameter("pdf"));
 
-        // Convertir cadenas vacías a null para que el DAO traiga todos los registros
+        // Convertir cadenas vacias a null para traer todos los registros
         if (fechaInicio != null && fechaInicio.isEmpty()) fechaInicio = null;
         if (fechaFin != null && fechaFin.isEmpty()) fechaFin = null;
 
@@ -37,56 +37,67 @@ public class ReporteServlet extends HttpServlet {
 
             switch (pathInfo) {
 
-                // Reporte de ventas
                 case "/ventas" -> {
                     var lista = reservacionDAO.listar();
                     if (exportarPdf) {
-                        byte[] pdf = PdfGenerator.generarReporteVentas(lista);
-                        enviarPdf(res, pdf, "reporte_ventas.pdf");
+                        enviarPdf(res, PdfGenerator.generarReporteVentas(lista), "reporte_ventas.pdf");
                     } else {
                         enviarJson(res, lista);
                     }
                 }
 
-                // Reporte de cancelaciones
                 case "/cancelaciones" -> {
                     var lista = cancelacionDAO.listarPorIntervalo(fechaInicio, fechaFin);
                     if (exportarPdf) {
-                        byte[] pdf = PdfGenerator.generarReporteCancelaciones(lista);
-                        enviarPdf(res, pdf, "reporte_cancelaciones.pdf");
+                        enviarPdf(res, PdfGenerator.generarReporteCancelaciones(lista), "reporte_cancelaciones.pdf");
                     } else {
                         enviarJson(res, lista);
                     }
                 }
 
-                // Reporte de ganancias netas
                 case "/ganancias" -> {
                     Map<String, Object> datos = reservacionDAO.getReporteGanancias(fechaInicio, fechaFin);
-                    enviarJson(res, datos);
+                    if (exportarPdf) {
+                        enviarPdf(res, PdfGenerator.generarReporteGanancias(datos), "reporte_ganancias.pdf");
+                    } else {
+                        enviarJson(res, datos);
+                    }
                 }
 
-                // Agente con más ventas
                 case "/agente-ventas" -> {
                     Map<String, Object> datos = reservacionDAO.getAgentesMasVentas(fechaInicio, fechaFin);
-                    enviarJson(res, datos);
+                    if (exportarPdf) {
+                        enviarPdf(res, PdfGenerator.generarReporteAgentes(datos, "REPORTE AGENTE CON MAS VENTAS"), "reporte_agente_ventas.pdf");
+                    } else {
+                        enviarJson(res, datos);
+                    }
                 }
 
-                // Agente con más ganancias
                 case "/agente-ganancias" -> {
                     Map<String, Object> datos = reservacionDAO.getAgentesMasGanancias(fechaInicio, fechaFin);
-                    enviarJson(res, datos);
+                    if (exportarPdf) {
+                        enviarPdf(res, PdfGenerator.generarReporteAgentes(datos, "REPORTE AGENTE CON MAS GANANCIAS"), "reporte_agente_ganancias.pdf");
+                    } else {
+                        enviarJson(res, datos);
+                    }
                 }
 
-                // Paquetes ordenados por ventas (más y menos vendido)
                 case "/paquetes-ventas" -> {
                     List<Map<String, Object>> lista = reservacionDAO.getPaquetesPorVentas(fechaInicio, fechaFin);
-                    enviarJson(res, lista);
+                    if (exportarPdf) {
+                        enviarPdf(res, PdfGenerator.generarReportePaquetes(lista), "reporte_paquetes.pdf");
+                    } else {
+                        enviarJson(res, lista);
+                    }
                 }
 
-                // Ocupación por destino
                 case "/ocupacion-destino" -> {
                     List<Map<String, Object>> lista = reservacionDAO.getOcupacionPorDestino(fechaInicio, fechaFin);
-                    enviarJson(res, lista);
+                    if (exportarPdf) {
+                        enviarPdf(res, PdfGenerator.generarReporteOcupacion(lista), "reporte_ocupacion.pdf");
+                    } else {
+                        enviarJson(res, lista);
+                    }
                 }
 
                 default -> {
@@ -100,14 +111,12 @@ public class ReporteServlet extends HttpServlet {
         }
     }
 
-    // Envía la respuesta como JSON
     private void enviarJson(HttpServletResponse res, Object datos) throws IOException {
         res.setContentType("application/json");
         res.setCharacterEncoding("UTF-8");
         res.getWriter().print(gson.toJson(datos));
     }
 
-    // Envía la respuesta como PDF descargable
     private void enviarPdf(HttpServletResponse res, byte[] pdf, String nombreArchivo) throws IOException {
         res.setContentType("application/pdf");
         res.setHeader("Content-Disposition", "attachment; filename=" + nombreArchivo);

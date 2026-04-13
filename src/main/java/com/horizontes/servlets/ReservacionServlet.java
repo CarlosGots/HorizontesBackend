@@ -19,43 +19,45 @@ public class ReservacionServlet extends HttpServlet {
     private final Gson gson = new Gson();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        res.setContentType("application/json");
-        res.setCharacterEncoding("UTF-8");
-        PrintWriter out = res.getWriter();
-        try {
-            String pathInfo = req.getPathInfo();
-            String clienteParam = req.getParameter("cliente");
-            String diaParam = req.getParameter("dia");
+protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+    res.setContentType("application/json");
+    res.setCharacterEncoding("UTF-8");
+    PrintWriter out = res.getWriter();
+    try {
+        String pathInfo = req.getPathInfo();
+        String clienteParam = req.getParameter("cliente");
+        String diaParam = req.getParameter("dia");
+        String fechaParam = req.getParameter("fecha");
+        String destinoParam = req.getParameter("destino");
 
-            if (pathInfo != null && pathInfo.length() > 1) {
-                // GET /api/reservaciones/{id} — detalle con pasajeros
-                int id = Integer.parseInt(pathInfo.substring(1));
-                Reservacion r = dao.buscarPorId(id);
-                if (r != null) {
-                    r.setPasajeros(dao.listarPasajeros(id));
-                    out.print(gson.toJson(r));
-                } else {
-                    res.setStatus(404);
-                    out.print("{\"error\":\"Reservacion no encontrada\"}");
-                }
-            } else if (clienteParam != null) {
-                // GET /api/reservaciones?cliente={id}
-                List<Reservacion> lista = dao.listarPorCliente(Integer.parseInt(clienteParam));
-                out.print(gson.toJson(lista));
-            } else if ("hoy".equals(diaParam)) {
-                // GET /api/reservaciones?dia=hoy
-                List<Reservacion> lista = dao.listarDelDia();
-                out.print(gson.toJson(lista));
+        if (pathInfo != null && pathInfo.length() > 1) {
+            // Detalle con pasajeros
+            int id = Integer.parseInt(pathInfo.substring(1));
+            Reservacion r = dao.buscarPorId(id);
+            if (r != null) {
+                r.setPasajeros(dao.listarPasajeros(id));
+                out.print(gson.toJson(r));
             } else {
-                List<Reservacion> lista = dao.listar();
-                out.print(gson.toJson(lista));
+                res.setStatus(404);
+                out.print("{\"error\":\"Reservacion no encontrada\"}");
             }
-        } catch (Exception e) {
-            res.setStatus(500);
-            out.print("{\"error\":\"" + e.getMessage() + "\"}");
+        } else if (clienteParam != null) {
+            out.print(gson.toJson(dao.listarPorCliente(Integer.parseInt(clienteParam))));
+        } else if ("hoy".equals(diaParam)) {
+            out.print(gson.toJson(dao.listarDelDia()));
+        } else if (fechaParam != null || destinoParam != null) {
+            // Busqueda por fecha y/o destino
+            String fecha = (fechaParam != null && !fechaParam.isEmpty()) ? fechaParam : null;
+            int destinoId = (destinoParam != null && !destinoParam.isEmpty()) ? Integer.parseInt(destinoParam) : 0;
+            out.print(gson.toJson(dao.buscarPorFechaYDestino(fecha, destinoId)));
+        } else {
+            out.print(gson.toJson(dao.listar()));
         }
+    } catch (Exception e) {
+        res.setStatus(500);
+        out.print("{\"error\":\"" + e.getMessage() + "\"}");
     }
+}
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {

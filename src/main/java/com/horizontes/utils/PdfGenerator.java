@@ -7,6 +7,7 @@ import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.Map;
 
 public class PdfGenerator {
 
@@ -159,4 +160,115 @@ public class PdfGenerator {
             default -> "Desconocido";
         };
     }
+    
+    // Reporte de ganancias en PDF
+public static byte[] generarReporteGanancias(Map<String, Object> datos) throws Exception {
+    Document doc = new Document();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PdfWriter.getInstance(doc, out);
+    doc.open();
+
+    doc.add(new Paragraph("Horizontes sin Limites", TITULO));
+    doc.add(new Paragraph("REPORTE DE GANANCIAS", SUBTITULO));
+    doc.add(Chunk.NEWLINE);
+
+    doc.add(new Paragraph("Ganancias brutas: Q. " + 
+        String.format("%.2f", datos.get("gananciasBrutas")), NEGRITA));
+    doc.add(new Paragraph("Total reembolsos: Q. " + 
+        String.format("%.2f", datos.get("totalReembolsos")), NORMAL));
+    doc.add(new Paragraph("Ganancia neta: Q. " + 
+        String.format("%.2f", datos.get("gananciaNeta")), NEGRITA));
+
+    doc.close();
+    return out.toByteArray();
+}
+
+// Reporte de agentes en PDF
+public static byte[] generarReporteAgentes(Map<String, Object> datos, String titulo) throws Exception {
+    Document doc = new Document();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PdfWriter.getInstance(doc, out);
+    doc.open();
+
+    doc.add(new Paragraph("Horizontes sin Limites", TITULO));
+    doc.add(new Paragraph(titulo, SUBTITULO));
+    doc.add(Chunk.NEWLINE);
+
+    List<Map<String, Object>> agentes = (List<Map<String, Object>>) datos.get("agentes");
+    PdfPTable tabla = new PdfPTable(2);
+    tabla.setWidthPercentage(100);
+    tabla.addCell(celda("Agente", true));
+    tabla.addCell(celda("Total", true));
+
+    for (Map<String, Object> a : agentes) {
+        tabla.addCell(celda(a.get("nombre").toString(), false));
+        if (a.containsKey("montoTotal")) {
+            tabla.addCell(celda("Q. " + String.format("%.2f", 
+                ((Number) a.get("montoTotal")).doubleValue()), false));
+        } else {
+            tabla.addCell(celda("Q. " + String.format("%.2f", 
+                ((Number) a.get("gananciaTotal")).doubleValue()), false));
+        }
+    }
+    doc.add(tabla);
+    doc.close();
+    return out.toByteArray();
+}
+
+// Reporte de paquetes por ventas en PDF
+public static byte[] generarReportePaquetes(List<Map<String, Object>> lista) throws Exception {
+    Document doc = new Document();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PdfWriter.getInstance(doc, out);
+    doc.open();
+
+    doc.add(new Paragraph("Horizontes sin Limites", TITULO));
+    doc.add(new Paragraph("REPORTE DE PAQUETES POR VENTAS", SUBTITULO));
+    doc.add(Chunk.NEWLINE);
+
+    PdfPTable tabla = new PdfPTable(3);
+    tabla.setWidthPercentage(100);
+    tabla.addCell(celda("Paquete", true));
+    tabla.addCell(celda("Total ventas", true));
+    tabla.addCell(celda("Monto total", true));
+
+    for (int i = 0; i < lista.size(); i++) {
+        Map<String, Object> p = lista.get(i);
+        String nombre = p.get("nombre").toString();
+        if (i == 0) nombre += " [MAS VENDIDO]";
+        if (i == lista.size() - 1 && lista.size() > 1) nombre += " [MENOS VENDIDO]";
+        tabla.addCell(celda(nombre, false));
+        tabla.addCell(celda(p.get("totalVentas").toString(), false));
+        tabla.addCell(celda("Q. " + String.format("%.2f", 
+            ((Number) p.get("montoTotal")).doubleValue()), false));
+    }
+    doc.add(tabla);
+    doc.close();
+    return out.toByteArray();
+}
+
+// Reporte de ocupacion por destino en PDF
+public static byte[] generarReporteOcupacion(List<Map<String, Object>> lista) throws Exception {
+    Document doc = new Document();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PdfWriter.getInstance(doc, out);
+    doc.open();
+
+    doc.add(new Paragraph("Horizontes sin Limites", TITULO));
+    doc.add(new Paragraph("REPORTE DE OCUPACION POR DESTINO", SUBTITULO));
+    doc.add(Chunk.NEWLINE);
+
+    PdfPTable tabla = new PdfPTable(2);
+    tabla.setWidthPercentage(100);
+    tabla.addCell(celda("Destino", true));
+    tabla.addCell(celda("Total reservaciones", true));
+
+    for (Map<String, Object> d : lista) {
+        tabla.addCell(celda(d.get("destino").toString(), false));
+        tabla.addCell(celda(d.get("totalReservaciones").toString(), false));
+    }
+    doc.add(tabla);
+    doc.close();
+    return out.toByteArray();
+}
 }

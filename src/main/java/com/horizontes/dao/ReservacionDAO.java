@@ -336,4 +336,25 @@ public java.util.List<Map<String, Object>> getOcupacionPorDestino(String fechaIn
         return lista;
     }
 }
+// Busca reservaciones filtradas por fecha de viaje y/o destino
+public List<Reservacion> buscarPorFechaYDestino(String fecha, int destinoId) throws SQLException {
+    String sql = "SELECT r.*, p.nombre AS paquete_nombre, u.nombre AS agente_nombre " +
+                 "FROM reservacion r " +
+                 "JOIN paquete p ON r.paquete_id = p.id " +
+                 "JOIN destino d ON p.destino_id = d.id " +
+                 "JOIN usuario u ON r.agente_id = u.id " +
+                 "WHERE (? IS NULL OR r.fecha_viaje = ?) " +
+                 "AND (? = 0 OR d.id = ?)";
+    try (Connection con = Conexion.getConexion();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, fecha);
+        ps.setString(2, fecha);
+        ps.setInt(3, destinoId);
+        ps.setInt(4, destinoId);
+        ResultSet rs = ps.executeQuery();
+        List<Reservacion> lista = new ArrayList<>();
+        while (rs.next()) lista.add(mapear(rs));
+        return lista;
+    }
+}
 }
